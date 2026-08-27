@@ -180,9 +180,13 @@ public class AppSettings
 
     public int VolumeStepAmount
     {
-        get => _settings.Get("VolumeStepAmount", 2);
-        set => _settings.Set("VolumeStepAmount", Math.Max(1, Math.Min(50, value)));
+        // Clamped on the way out as well as in: a value written directly to the registry
+        // would otherwise reach the step maths, where zero divides.
+        get => BoundVolumeStep(_settings.Get("VolumeStepAmount", 2));
+        set => _settings.Set("VolumeStepAmount", BoundVolumeStep(value));
     }
+
+    private static int BoundVolumeStep(int value) => Math.Max(1, Math.Min(50, value));
 
     public bool UseRangeSnapping
     {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EarTrumpet.UI.Helpers;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -202,25 +203,14 @@ public class VolumeSlider : Slider
 
     private void OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (App.Settings.UseLogarithmicVolume)
+        var direction = Math.Sign(e.Delta);
+        if (UsesVolumeStepSettings)
         {
-            var amount = Math.Sign(e.Delta) * 0.2;
-            ChangePositionByAmount(amount);
+            Value = Bound(VolumeStepper.Step(Value, direction));
         }
         else
         {
-            var step = App.Settings.VolumeStepAmount;
-            if (App.Settings.UseRangeSnapping)
-            {
-                var newValue = (e.Delta > 0)
-                    ? GetNextSnapPoint(Value, step)
-                    : GetPrevSnapPoint(Value, step);
-                Value = Bound(newValue);
-            }
-            else
-            {
-                ChangePositionByAmount(Math.Sign(e.Delta) * step);
-            }
+            ChangePositionByAmount(direction * (App.Settings.UseLogarithmicVolume ? 0.2 : 2.0));
         }
         e.Handled = true;
     }
@@ -235,14 +225,9 @@ public class VolumeSlider : Slider
         else
         {
             var rawValue = (Maximum - Minimum) * percent;
-            if (App.Settings.UseSliderSnap)
-            {
-                Value = Bound(GetNearestSnapPoint(rawValue, App.Settings.VolumeStepAmount));
-            }
-            else
-            {
-                Value = Bound(rawValue);
-            }
+            Value = Bound(UsesVolumeStepSettings && App.Settings.UseSliderSnap
+                ? VolumeStepper.NearestSnapPoint(rawValue, App.Settings.VolumeStepAmount)
+                : rawValue);
         }
     }
 
@@ -256,25 +241,7 @@ public class VolumeSlider : Slider
         return Math.Max(Minimum, Math.Min(Maximum, val));
     }
 
-    private static double GetNextSnapPoint(double current, int step)
-    {
-        var target = Math.Floor(current / step) * step + step;
-        return (target > 100) ? 100 : target;
-    }
-
-    private static double GetPrevSnapPoint(double current, int step)
-    {
-        var target = Math.Ceiling(current / step) * step - step;
-        return (target < 0) ? 0 : target;
-    }
-
-    private static double GetNearestSnapPoint(double current, int step)
-    {
-        var snap = Math.Round(current / step) * step;
-        if (Math.Abs(100 - current) < Math.Abs(snap - current))
-        {
-            return 100;
-        }
-        return Math.Min(100, Math.Max(0, snap));
-    }
+    // Action-configuration sliders carry their own units and bounds (they can be decibels), so
+    // the user's percentage-based step and snapping settings do not apply to them.
+    private bool UsesVolumeStepSettings => !UseCustomRange;
 }
